@@ -43,7 +43,7 @@
         <artifactId>maven-javadoc-plugin</artifactId>
         <version>2.7</version>
         <configuration>
-       	  <reportOutputDirectory>${basedir}/target/javadoc/</reportOutputDirectory>
+       	  <reportOutputDirectory>${basedir}/target/site/doc/</reportOutputDirectory>
        	  <destDir>${project.version}</destDir>
        	  <overview>${basedir}/src/main/javadoc/overview.html</overview>
         </configuration>
@@ -85,6 +85,15 @@
 	            <phase>process-sources</phase>
 	        </execution>
 	    </executions>
+      </plugin>
+      <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-site-plugin</artifactId>
+        <version>3.0</version>
+        <configuration>
+          <generateProjectInfo>false</generateProjectInfo>
+       <generateReports>false</generateReports>
+        </configuration>
       </plugin>
     </plugins>
   </build>

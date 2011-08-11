@@ -17,8 +17,8 @@
 	application.</p>
 	</subsection>
 
-	<subsection name="Files">
-	<p>Current version: ${project.version}</p>
+	<subsection name="Latest version files">
+	<p>Latest version: ${project.version}</p>
 
 	<ul>
 		<li><a href="dist/dimawo-${project.version}.jar">
@@ -26,6 +26,14 @@
 		<li><a href="dist/dimawo-${project.version}-src.tar.gz">
 		Source code (tar.gz)</a></li>
 	</ul>
+	</subsection>
+	
+	<subsection name="Version control">
+	<p>DiMaWo's source code is available on <a href="https://github.com/">
+	GitHub</a> (repository "dimawo" of user "gdethier"). Feel free to fork the
+	project and, if you would like to
+	contribute, send pull requests (requires a free GitHub account).
+	</p>
 	</subsection>
 
 	</section>

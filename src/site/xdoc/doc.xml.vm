@@ -47,8 +47,8 @@
 
 
 	<subsection name="API documentation">
-	<p>This <a href="doc/${project.version}/index.html">link</a> points to DiMaWo ${project.version}
-	documentation.</p>
+	<p>This <a href="doc/${project.version}/index.html">link</a> points to
+	DiMaWo's latest version's (${project.version}) documentation.</p>
 	</subsection>
 
 	</section>
