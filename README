@@ -1,0 +1,5 @@
+DiMaWo is a Java library (generally packaged into a JAR file). Source code is
+managed with "Maven":http://maven.apache.org/. DiMaWo's JAR file can be produced
+by calling 'mvn package'. DiMaWo's API documentation is generated using
+'mvn javadoc:javadoc'. See API's documentation for more details about DiMaWo's
+internal workings.
