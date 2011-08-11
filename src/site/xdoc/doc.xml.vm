@@ -1,0 +1,57 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<document xmlns="http://maven.apache.org/XDOC/2.0"
+  xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+  xsi:schemaLocation="http://maven.apache.org/XDOC/2.0 http://maven.apache.org/xsd/xdoc-2.0.xsd">
+
+  <properties>
+    <title>DiMaWo's documentation</title>
+    <author email="g.dethier@gmail.com">Gérard Dethier</author>
+  </properties>
+
+  <body>
+	<section name="Documentation">
+	
+	<subsection name="DiMaWo philosophy">
+	<p>A DiMaWo application is composed of agents interacting by sending
+	messages to each other. Each agent can be seen as running its own thread
+	and all inter-agent communications are asynchronous.</p>
+
+	<p>The main reason for this is to avoid as much as possible mutual exclusion
+	or dead-lock problems in highly parallel applications. Finally, the
+	asynchronous nature of communications between agents is well suited to
+	the distribution of agents among several computers and therefore the
+	transmission of some messages through the network.</p>
+	</subsection>
+
+	<subsection name="Writing a DiMaWo application...">
+	<p>... is a relatively easy task: the user must
+	implement a master/worker factory (implementing <code>MasterWorkerFactory
+	</code>	interface). This factory instantiates 2 classes the user must also
+	provide: a "master" class (subclass of <code>MasterAgent</code>) and a
+	"worker" class (subclass of <code>WorkerAgent</code>) respectively
+	implementing the master process and the worker process. In order to write
+	scalable distributed applications, the master should interact as little as
+	possible with the workers.</p>
+
+	<p>Master and workers are able to communicate through a message passing
+	interface provided by the Distributed Agent (DA) (implemented by class
+	<code>DistributedAgent</code>). The DA is the agent that actually
+	instantiates a worker and/or a master on a particular computer. The message
+	passing interface agent, called Communicator, is accessible through DA's
+	<code>getCommunicator()</code> method.</p>
+
+	<p>More advanced services like broadcast, distributed file system, barrier
+	synchronization, etc. are provided by the DA. See documentation for more
+	details.</p>
+	</subsection>
+
+
+	<subsection name="API documentation">
+	<p>This <a href="doc/${project.version}/index.html">link</a> points to DiMaWo ${project.version}
+	documentation.</p>
+	</subsection>
+
+	</section>
+  </body>
+
+</document>

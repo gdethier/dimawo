@@ -1,0 +1,74 @@
+<!--
+  #%L
+  DiMaWo
+  %%
+  Copyright (C) 2011 G. Dethier
+  %%
+  This program is free software: you can redistribute it and/or modify
+  it under the terms of the GNU General Public License as
+  published by the Free Software Foundation, either version 3 of the 
+  License, or (at your option) any later version.
+  
+  This program is distributed in the hope that it will be useful,
+  but WITHOUT ANY WARRANTY; without even the implied warranty of
+  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+  GNU General Public License for more details.
+  
+  You should have received a copy of the GNU General Public 
+  License along with this program.  If not, see
+  <http://www.gnu.org/licenses/gpl-3.0.html>.
+  #L%
+  -->
+<html>
+<body>
+
+<p>The DiMaWo framework eases the development of distributed applications based
+on a Master/Worker architecture. The framework provides common services
+(broadcasting, leader election, etc.) that are implemented in a mostly
+decentralized way.</p>
+
+<p>DiMaWo applications are composed of agents interacting in an asynchronous
+way. The user must at least provide 2 types of agents:
+the {@link be.ulg.montefiore.dimawo.WorkerAgent Worker Agent} (WA) and
+the {@link be.ulg.montefiore.dimawo.MasterAgent Master Agent} (MA).
+He does so through a specific implementation
+of {@link be.ulg.montefiore.dimawo.MasterWorkerFactory Master/Worker Factory
+interface}. The WA implements the workers of the application
+and the MA the master. DiMaWo provides generic "executable" (i.e defining
+a static main method) classes that can be used to easily deploy a DiMaWo
+application (see {@link be.ulg.montefiore.dimawo.exec exec} package).</p>
+
+<p>In addition to user provided agents, a DiMaWo application implies several core
+agents:</p>
+<ul>
+	<li>The Communicator (COM) implements a simple message passing interface
+	based on Java objects serialization (see
+	{@link be.ulg.montefiore.dimawo.middleware.communication communication} package).</li>
+	<li>The Overlay Agent (OA) implements the overlay the computers running
+	a DiMaWo application are part of. In addition, the OA gives
+	access to high-level services like broadcasting, leader
+	election, barrier synchronization and failure detection (see
+	{@link be.ulg.montefiore.dimawo.middleware.overlay overlay} package).</li>
+	<li>The Shared-Map Agent (SMA) implements a shared map into which
+	key-value pairs can be stored (see
+	{@link be.ulg.montefiore.dimawo.middleware.sharedMap sharedMap} package).</li>
+	<li>The File System Agent (FSA) implements a distributed file system
+	that enables DiMaWo agents to easily share files. It directly relies
+	on SMA to access its file table (see
+	{@link be.ulg.montefiore.dimawo.middleware.fileSystem fileSystem} package).</li>
+	<li>The Distributed Agent (DA) instantiates the WA and/or the MA provided
+	by the user (see
+	{@link be.ulg.montefiore.dimawo.middleware.distributedAgent distributedAgent} package).</li>
+</ul>
+
+<p>Each core agent is instantiated one time per computer running a DiMaWo
+application's process. Each computer therefore also runs a WA and, if the
+computer is the elected leader, the MA.</p>
+
+<p>DiMaWo provides agents that implement a simple file transfer protocol that
+uses DiMaWo's COM. In particular, these agents are used by the FSA. For more
+details, see {@link be.ulg.montefiore.dimawo.fileTransfer fileTransfer}
+package.</p>
+
+</body>
+</html>
