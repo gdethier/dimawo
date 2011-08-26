@@ -21,53 +21,41 @@
  */
 package dimawo.exec;
 
-import dimawo.MasterWorkerFactory;
-import dimawo.Reflection;
-import dimawo.agents.AbstractAgent;
 import dimawo.middleware.distributedAgent.DAId;
-import dimawo.middleware.distributedAgent.DistributedAgent;
 import dimawo.middleware.distributedAgent.logging.NetworkLogger;
-import dimawo.middleware.fileSystem.FileSystemAgentParameters;
-import dimawo.middleware.overlay.impl.decentral.DecentralOverlay;
 import dimawo.simulation.GenericSimulatedLauncher;
 import dimawo.simulation.socket.SocketFactory;
 
 public class GenericSimulatedBootstrapPeerLauncher extends GenericSimulatedLauncher {
-	private String factClassName = null;
-	private int port = -1;
-	private String workDirName = null;
-	private int maxNumOfChildren = 1;
-	private int reliabilityThreshold = 1;
-	private int verbLevel = 0;
+	private WorkerParameters params = new WorkerParameters();
 	private String logSvrHost = null;
 	private int logSvrPort = -1;
-	private String[] factParams = null;
 	
-	private DistributedAgent da;
+	private WorkerProcess proc;
 
 
 	public void setMasterWorkerFactoryClassName(String className) {
-		this.factClassName = className;
+		this.params.factClassName = className;
 	}
 	
 	public void setDaPort(int port) {
-		this.port = port;
+		this.params.port = port;
 	}
 	
 	public void setDaWorkingDirectory(String workDir) {
-		this.workDirName = workDir;
+		this.params.workDirName = workDir;
 	}
 	
 	public void setMnTreeMaxNumOfChildren(int num) {
-		this.maxNumOfChildren = num;
+		this.params.maxNumOfChildren = num;
 	}
 	
 	public void setMnTreeReliabilityThreshold(int thresh) {
-		this.reliabilityThreshold = thresh;
+		this.params.reliabilityThreshold = thresh;
 	}
 	
 	public void setAgentsVerbosityLevel(int level) {
-		this.verbLevel = level;
+		this.params.verbLevel = level;
 	}
 	
 	public void setDaLogServerHostNameAndPort(String name, int port) {
@@ -76,41 +64,19 @@ public class GenericSimulatedBootstrapPeerLauncher extends GenericSimulatedLaunc
 	}
 	
 	public void setMasterWorkerFactoryArguments(String[] args) {
-		this.factParams = args;
+		this.params.factParams = args;
 	}
 
 	public void main() throws Exception {
-		AbstractAgent.setDefaultVerbosityLevel(verbLevel);
-		
-		MasterWorkerFactory tFact = (MasterWorkerFactory) Reflection.newInstance(factClassName);
-		tFact.setParameters(factParams);
-		DAId id = new DAId(access.getHostName(), port,
-				System.currentTimeMillis());
-		da = new DistributedAgent(id, workDirName, tFact,
-				new NullDiscoveryService(),
+		proc = new WorkerProcess(params,
 				new NetworkLogger(new DAId(logSvrHost, logSvrPort, 0)),
-				new FileSystemAgentParameters());
-		DecentralOverlay over = new DecentralOverlay(da,
-				maxNumOfChildren, reliabilityThreshold,
 				new SocketFactory(access));
 		
-		System.out.println("Bootstrapping overlay");
-		try {
-			over.initOverlay();
-		} catch(Exception e) {
-			over.leaveOverlay();
-			throw e;
-		}
-		
-		System.out.println("Running DA");
-		da.start();
-		da.join();
-		
-		System.out.println("DA closed.");
+		proc.executeProcess();
 	}
 
 	@Override
 	public void kill() {
-		da.killDA();
+		proc.killProcess();
 	}
 }

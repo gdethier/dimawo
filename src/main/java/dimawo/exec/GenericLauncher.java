@@ -21,23 +21,8 @@
  */
 package dimawo.exec;
 
-import java.net.InetAddress;
-import java.util.logging.Level;
-import java.util.logging.Logger;
-
-import dimawo.MasterWorkerFactory;
-import dimawo.Reflection;
-import dimawo.agents.AbstractAgent;
-import dimawo.middleware.distributedAgent.DAId;
-import dimawo.middleware.distributedAgent.DistributedAgent;
 import dimawo.middleware.distributedAgent.logging.ConsoleLogger;
-import dimawo.middleware.distributedAgent.logging.NetworkLogger;
-import dimawo.middleware.fileSystem.FileSystemAgentParameters;
-import dimawo.middleware.overlay.JoinParameters;
-import dimawo.middleware.overlay.impl.decentral.DecentralOverlay;
 import dimawo.simulation.socket.SocketFactory;
-
-
 
 
 public class GenericLauncher {
@@ -55,47 +40,21 @@ public class GenericLauncher {
 			System.exit(-1);
 		}
 		
-		String factClassName = args[0];
-		int port = Integer.parseInt(args[1]);
-		String workDirName = args[2];
-		String ctrlHostName = args[3];
-		int ctrlPort = Integer.parseInt(args[4]);
-		int maxNumOfChildren = Integer.parseInt(args[5]);
-		int reliabilityThreshold = Integer.parseInt(args[6]);
-		int verbLevel = Integer.parseInt(args[7]);
-		String[] factParams = new String[args.length - nGenArgs];
-		System.arraycopy(args, nGenArgs, factParams, 0, args.length - nGenArgs);
+		WorkerParameters params = new WorkerParameters();
+		params.factClassName = args[0];
+		params.port = Integer.parseInt(args[1]);
+		params.workDirName = args[2];
+		params.bootstrapHostName = args[3];
+		params.bootstrapPort = Integer.parseInt(args[4]);
+		params.maxNumOfChildren = Integer.parseInt(args[5]);
+		params.reliabilityThreshold = Integer.parseInt(args[6]);
+		params.verbLevel = Integer.parseInt(args[7]);
+		params.factParams = new String[args.length - nGenArgs];
+		System.arraycopy(args, nGenArgs, params.factParams, 0, args.length - nGenArgs);
 		
-		AbstractAgent.setDefaultVerbosityLevel(verbLevel);
+		WorkerProcess proc = new WorkerProcess(params, new ConsoleLogger(), new SocketFactory());
 		
-		MasterWorkerFactory tFact = (MasterWorkerFactory) Reflection.newInstance(factClassName);
-		tFact.setParameters(factParams);
-		DAId id = new DAId(InetAddress.getLocalHost().getHostName(), port,
-				System.currentTimeMillis());
-		DistributedAgent da = new DistributedAgent(id, workDirName, tFact,
-				new NullDiscoveryService(),
-//				new NetworkLogger(new DAId(logSvrHost, logSvrPort, 0)),
-				new ConsoleLogger(),
-				new FileSystemAgentParameters());
-		DecentralOverlay over = new DecentralOverlay(da,
-				maxNumOfChildren, reliabilityThreshold,
-				new SocketFactory());
-		
-		System.out.println("Joining overlay");
-		over.setJoinParameters(new JoinParameters(ctrlHostName,
-				ctrlPort));
-		try {
-			over.joinOverlay();
-		} catch(Exception e) {
-			over.leaveOverlay();
-			throw e;
-		}
-		
-		System.out.println("Running DA");
-		da.start();
-		da.join();
-		
-		System.out.println("DA closed.");
+		proc.executeProcess();
 	}
 
 }

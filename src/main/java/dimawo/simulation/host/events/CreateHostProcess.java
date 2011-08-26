@@ -19,40 +19,26 @@
  * <http://www.gnu.org/licenses/gpl-3.0.html>.
  * #L%
  */
-package dimawo.simulation.middleware;
+package dimawo.simulation.host.events;
 
 import dimawo.exec.WorkerParameters;
-import dimawo.exec.WorkerProcess;
-import dimawo.middleware.distributedAgent.logging.NetworkLogger;
-import dimawo.simulation.host.HostAccess;
-import dimawo.simulation.socket.SocketFactory;
+import dimawo.middleware.distributedAgent.logging.LoggerInterface;
+import dimawo.simulation.host.ProcessHandle;
 
-public class VirtualTaskDescription {
-	private String name;
-
+public class CreateHostProcess extends ProcessEvent {
+	private ProcessHandle handle;
 	private WorkerParameters params;
-
-	private String logSvrHost;
-	private int logSvrPort;
-
-
-	public VirtualTaskDescription(String name, WorkerParameters params,
-			String logSvrHost, int logSvrPort) {
-		this.name = name;
-
+	
+	public CreateHostProcess(ProcessHandle handle, WorkerParameters params) {
+		this.handle = handle;
 		this.params = params;
-
-		this.logSvrHost = logSvrHost;
-		this.logSvrPort = logSvrPort;
 	}
 
-	public String getName() {
-		return name;
+	public ProcessHandle getProcessHandle() {
+		return handle;
 	}
 
-	public WorkerProcess newProcess(HostAccess access) throws Exception {
-		return new WorkerProcess(params,
-				new NetworkLogger(logSvrHost, logSvrPort),
-				new SocketFactory(access));
+	public WorkerParameters getWorkerParameters() {
+		return params;
 	}
 }

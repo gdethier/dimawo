@@ -23,9 +23,8 @@ package dimawo.simulation.middleware;
 
 import java.util.concurrent.Semaphore;
 
-import dimawo.simulation.SimulatedLauncher;
+import dimawo.exec.WorkerProcess;
 import dimawo.simulation.host.HostAccess;
-
 
 
 public class VirtualTask {
@@ -35,6 +34,7 @@ public class VirtualTask {
 	
 	private HostAccess access;
 	private VirtualTaskDescription taskDesc;
+	private WorkerProcess proc;
 	private Thread procThread;
 	
 	private Semaphore started;
@@ -70,13 +70,12 @@ public class VirtualTask {
 
 	public void kill() {
 		access.close();
-		taskDesc.kill();
+		proc.killProcess();
 	}
 
 	public void start(HostAccess access) throws Exception {
 		this.access = access;
-		final SimulatedLauncher launcher = taskDesc.getLauncher();
-		launcher.setHostAccess(access);
+		proc = taskDesc.newProcess(access);
 
 		if(procThread != null)
 			throw new Exception("Task already executed");
@@ -84,7 +83,7 @@ public class VirtualTask {
 		procThread = new Thread() {
 			public void run() {
 				try {
-					launcher.main();
+					proc.executeProcess();
 					VirtualTask.this.signalEndOfProcess();
 				} catch (Throwable e) {
 					e.printStackTrace();

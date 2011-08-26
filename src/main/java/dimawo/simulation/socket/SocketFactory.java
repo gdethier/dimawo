@@ -22,10 +22,10 @@
 package dimawo.simulation.socket;
 
 import java.io.IOException;
+import java.net.InetAddress;
+import java.net.UnknownHostException;
 
 import dimawo.simulation.host.HostAccess;
-
-
 
 
 public class SocketFactory {
@@ -39,6 +39,13 @@ public class SocketFactory {
 
 	public SocketFactory(HostAccess host) {
 		this.host = host;
+	}
+	
+	public String getHostName() throws UnknownHostException {
+		if(host != null)
+			return host.getHostName();
+		else
+			return InetAddress.getLocalHost().getHostName();
 	}
 	
 	public SocketInterface newSocket() throws IOException {

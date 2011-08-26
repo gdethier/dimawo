@@ -29,15 +29,21 @@ import java.util.TreeMap;
 
 import dimawo.agents.LoggingAgent;
 import dimawo.agents.UnknownAgentMessage;
+import dimawo.exec.WorkerParameters;
+import dimawo.exec.WorkerProcess;
+import dimawo.middleware.distributedAgent.logging.ConsoleLogger;
 import dimawo.simulation.host.events.AccessClosed;
 import dimawo.simulation.host.events.CloseServerSocket;
 import dimawo.simulation.host.events.CloseSocket;
 import dimawo.simulation.host.events.ConnectEvent;
+import dimawo.simulation.host.events.CreateHostProcess;
 import dimawo.simulation.host.events.DataEvent;
+import dimawo.simulation.host.events.HostProcessExited;
 import dimawo.simulation.host.events.MiddlewareEvent;
 import dimawo.simulation.host.events.NetworkEvent;
 import dimawo.simulation.host.events.NewServerSocketEvent;
 import dimawo.simulation.host.events.NewSocketEvent;
+import dimawo.simulation.host.events.ProcessEvent;
 import dimawo.simulation.host.events.RunTask;
 import dimawo.simulation.host.events.SignalCloseSocket;
 import dimawo.simulation.host.events.TaskCompleted;
@@ -45,16 +51,13 @@ import dimawo.simulation.middleware.VirtualTask;
 import dimawo.simulation.net.NetworkException;
 import dimawo.simulation.net.VirtualNetwork;
 import dimawo.simulation.socket.ServerSocketInterface;
+import dimawo.simulation.socket.SocketFactory;
 import dimawo.simulation.socket.VirtualServerSocket;
 import dimawo.simulation.socket.VirtualSocket;
 import dimawo.simulation.socket.VirtualSocketAddress;
 
 
-
-
-
 public class VirtualHost extends LoggingAgent {
-	
 	private static final int MIN_USER_PORT = 1024;
 	private static final int MAX_USER_PORT = 65535;
 	
@@ -69,6 +72,12 @@ public class VirtualHost extends LoggingAgent {
 	private TreeMap<Integer, VirtualSocket> openSocks;
 	private TreeMap<Integer, VirtualServerSocket> serverSocks;
 
+	/** The process ID to associate to next created process. */
+	private int nextProcID;
+	/** A table of ProcessHandles associated to all created process currently
+	 * executing. */
+	private TreeMap<Integer, ProcessHandle> procHandles;
+
 	private VirtualTask runningTask;
 
 	
@@ -82,6 +91,9 @@ public class VirtualHost extends LoggingAgent {
 
 		openSocks = new TreeMap<Integer, VirtualSocket>();
 		serverSocks = new TreeMap<Integer, VirtualServerSocket>();
+		
+		nextProcID = 0;
+		procHandles = new TreeMap<Integer, ProcessHandle>();
 		
 		net.connectHost(this);
 	}
@@ -485,7 +497,28 @@ public class VirtualHost extends LoggingAgent {
 			e.printStackTrace();
 		}
 	}
-	
+
+	/**
+	 * Requests the creation of a process on the virtual host. This produces
+	 * a ProcessHandle instance that can be used to retrieve information about
+	 * processe's state (see {@link ProcessHandle}). Note that created handle
+	 * contains only undefined information until actual creation of the
+	 * process.
+	 * 
+	 * @param params The parameters of the worker the process will execute.
+	 * 
+	 * @return A ProcessHandle instance.
+	 */
+	public ProcessHandle createHostProcess(WorkerParameters params) {
+		ProcessHandle handle = new ProcessHandle();
+		try {
+			submitMessage(new CreateHostProcess(handle, params));
+		} catch (InterruptedException e) {
+			e.printStackTrace();
+		}
+		return handle;
+	}
+
 	private synchronized void handleRunTask(RunTask rt) {
 		VirtualTask task = rt.getTask();
 		killTask();
@@ -535,11 +568,14 @@ public class VirtualHost extends LoggingAgent {
 				sock.getOutputStream().close();
 			} catch (IOException e1) {
 			}
-			SignalCloseSocket scs = new SignalCloseSocket(
-					(VirtualSocketAddress) sock.getRemoteSocketAddress());
-			try {
-				net.routeEvent(scs);
-			} catch (NetworkException e2) {
+
+			VirtualSocketAddress addr = sock.getRemoteSocketAddress();
+			if(addr != null) { // Socket may not be already connected
+				SignalCloseSocket scs = new SignalCloseSocket(addr);
+				try {
+					net.routeEvent(scs);
+				} catch (NetworkException e2) {
+				}
 			}
 		}
 		openSocks.clear();
@@ -560,6 +596,11 @@ public class VirtualHost extends LoggingAgent {
 			runningTask.signalInterrupted(hostname);
 			runningTask = null;
 		}
+		
+		for(ProcessHandle h : procHandles.values()) {
+			h.killProcess();
+			h.signalEndOfExecution(new Exception("Host is down"));
+		}
 	}
 
 	@Override
@@ -570,9 +611,95 @@ public class VirtualHost extends LoggingAgent {
 			handleMiddlewareEvent((MiddlewareEvent) o);
 		} else if(o instanceof AccessClosed) {
 			handleAccessClosed((AccessClosed) o);
+		} else if(o instanceof ProcessEvent) {
+			handleProcessEvent((ProcessEvent) o);
 		} else {
 			throw new UnknownAgentMessage(o);
 		}
+	}
+
+	private void handleProcessEvent(ProcessEvent o) throws UnknownAgentMessage {
+		if(o instanceof CreateHostProcess) {
+			handleCreateHostProcess((CreateHostProcess) o);
+		} else if(o instanceof HostProcessExited) {
+			handleHostProcessExited((HostProcessExited) o);
+		} else {
+			throw new UnknownAgentMessage(o);
+		}
+	}
+
+	private void handleHostProcessExited(HostProcessExited o) {
+		ProcessHandle handle = o.getProcessHandle();
+
+		// Remove handle from table
+		int procID = handle.getProcID();
+		printMessage("Removing process "+procID);
+		ProcessHandle removedHandle = procHandles.remove(procID);
+
+		if(removedHandle != handle)
+			throw new Error("Process was not registered before.");
+		
+		// Close sockets associated to exited process
+		// TODO
+
+		handle.signalEndOfExecution(o.getError());
+	}
+
+	private void handleCreateHostProcess(CreateHostProcess o) {
+		final ProcessHandle handle = o.getProcessHandle();
+		
+		// Create process
+		HostAccess access = null;
+		try {
+			access = getAccess();
+		} catch (NetworkException e2) {
+			handle.signalProcessCreated(e2); // Signal error on creation
+			return;
+		}
+
+		WorkerProcess proc = null;
+		try {
+			proc = new WorkerProcess(o.getWorkerParameters(),
+					new ConsoleLogger(), new SocketFactory(access));
+		} catch (Exception e2) {
+			handle.signalProcessCreated(e2); // Signal error on creation
+			return;
+		}
+		
+		printMessage("Worker process instantiated.");
+		
+		// Insert handle into table
+		while(procHandles.containsKey(nextProcID))
+			++nextProcID;
+		handle.setProcId(nextProcID);
+		handle.setWorkerProcess(proc);
+		procHandles.put(nextProcID, handle);
+		printMessage("Creating process "+nextProcID);
+		++nextProcID;
+
+		handle.signalProcessCreated(null);
+
+		final WorkerProcess finalProc = proc;
+		Thread t = new Thread() {
+			public void run() {
+				try {
+					finalProc.executeProcess();
+					try {
+						submitMessage(new HostProcessExited(handle, null));
+					} catch (Exception e) {
+						e.printStackTrace();
+					}
+				} catch (Exception e) {
+					try {
+						submitMessage(new HostProcessExited(handle, e));
+					} catch (InterruptedException e1) {
+						e1.printStackTrace();
+					}
+				}
+			}
+		};
+		t.setDaemon(true);
+		t.start();
 	}
 
 	private void handleAccessClosed(AccessClosed o) {
@@ -581,7 +708,7 @@ public class VirtualHost extends LoggingAgent {
 
 	@Override
 	protected void init() throws Throwable {
-		agentPrintMessage("init");
+		printMessage("init");
 	}
 	
 	private void handleMiddlewareEvent(MiddlewareEvent me) throws UnknownAgentMessage {

@@ -24,10 +24,36 @@ package dimawo.middleware.distributedAgent.logging;
 import dimawo.middleware.communication.CommunicatorInterface;
 import dimawo.middleware.distributedAgent.DAId;
 
+/**
+ * A NetworkLogger sends all logged messages to a remote host. The remote
+ * host should run an application able to receive these messages and handle
+ * them (for example, by printing them into a file).
+ * 
+ * @author Gerard Dethier
+ */
 public class NetworkLogger implements LoggerInterface {
+	/** The communicator used to send log messages. */
 	private CommunicatorInterface com;
+	/** The ID of destination host log messages are sent to. */
 	private DAId dest;
 	
+	/**
+	 * Instantiates a NetworkLogger that sends log messages to
+	 * a host described by given host name and server port.
+	 * 
+	 * @param hostName Log messages destination host name
+	 * @param port Log messages destination server port
+	 */
+	public NetworkLogger(String hostName, int port) {
+		this.dest = new DAId(hostName, port, 0);
+	}
+
+	/**
+	 * Instantiates a NetworkLogger that sends log messages to
+	 * a host described by a given ID.
+	 * 
+	 * @param dest Log messages destination ID
+	 */
 	public NetworkLogger(DAId dest) {
 		this.dest = dest;
 	}

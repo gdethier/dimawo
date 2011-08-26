@@ -19,41 +19,25 @@
  * <http://www.gnu.org/licenses/gpl-3.0.html>.
  * #L%
  */
-package be.ulg.montefiore.dimawo;
+package dimawo.simulation.host.events;
 
-import junit.framework.Test;
-import junit.framework.TestCase;
-import junit.framework.TestSuite;
+import dimawo.simulation.host.ProcessHandle;
 
-/**
- * Unit test for simple App.
- */
-public class AppTest 
-    extends TestCase
-{
-    /**
-     * Create the test case
-     *
-     * @param testName name of the test case
-     */
-    public AppTest( String testName )
-    {
-        super( testName );
-    }
+public class HostProcessExited extends ProcessEvent {
+	private ProcessHandle handle;
+	private Exception error;
+	
+	public HostProcessExited(ProcessHandle handle, Exception e) {
+		this.handle = handle;
+		this.error = e;
+	}
 
-    /**
-     * @return the suite of tests being tested
-     */
-    public static Test suite()
-    {
-        return new TestSuite( AppTest.class );
-    }
+	public ProcessHandle getProcessHandle() {
+		return handle;
+	}
 
-    /**
-     * Rigourous Test :-)
-     */
-    public void testApp()
-    {
-        assertTrue( true );
-    }
+	public Exception getError() {
+		return error;
+	}
+
 }
