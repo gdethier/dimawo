@@ -4,7 +4,7 @@
 
   <groupId>dimawo</groupId>
   <artifactId>dimawo</artifactId>
-  <version>0.1</version>
+  <version>${ciVersion}</version>
   <packaging>jar</packaging>
 
   <name>DiMaWo</name>
@@ -13,7 +13,7 @@
   <organization>
   	<name>DiMaWo Team</name>
   </organization>
-  
+
   <developers>
     <developer>
       <id>dethier</id>
@@ -43,28 +43,10 @@
         <artifactId>maven-javadoc-plugin</artifactId>
         <version>2.7</version>
         <configuration>
-       	  <reportOutputDirectory>${basedir}/target/site/doc/</reportOutputDirectory>
-       	  <destDir>${project.version}</destDir>
-       	  <overview>${basedir}/src/main/javadoc/overview.html</overview>
+          <reportOutputDirectory>${basedir}/target/site/doc/</reportOutputDirectory>
+          <destDir>${project.version}</destDir>
+          <overview>${basedir}/src/main/javadoc/overview.html</overview>
         </configuration>
-      </plugin>
-      <plugin>
-        <artifactId>maven-assembly-plugin</artifactId>
-        <version>2.2.1</version>
-        <configuration>
-          <descriptors>
-            <descriptor>${basedir}/src/main/xml/src.xml</descriptor>
-		  </descriptors>
-        </configuration>
-        <executions>
-          <execution>
-            <id>make-assembly</id> <!-- this is used for inheritance merges -->
-            <phase>package</phase> <!-- bind to the packaging phase -->
-            <goals>
-              <goal>single</goal>
-            </goals>
-          </execution>
-        </executions>
       </plugin>
       <plugin>
         <groupId>org.codehaus.mojo</groupId>
@@ -76,30 +58,13 @@
 	        <canUpdateDescription>true</canUpdateDescription>
 	        <canUpdateLicence>true</canUpdateLicence>
     	</configuration>
-        <executions>
-	        <execution>
-	            <id>first</id>
-	            <goals>
-	                <goal>update-file-header</goal>
-	            </goals>
-	            <phase>process-sources</phase>
-	        </execution>
-	    </executions>
-      </plugin>
-      <plugin>
-        <groupId>org.apache.maven.plugins</groupId>
-        <artifactId>maven-site-plugin</artifactId>
-        <version>3.0</version>
-        <configuration>
-          <generateProjectInfo>false</generateProjectInfo>
-       <generateReports>false</generateReports>
-        </configuration>
       </plugin>
     </plugins>
   </build>
 
   <properties>
     <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+    <ciVersion>0.1-SNAPSHOT</ciVersion>
   </properties>
 
   <dependencies>
