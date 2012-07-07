@@ -212,7 +212,7 @@ public class VirtualHost extends LoggingAgent {
 	}
 
 	private boolean isUp() {
-		return getState().equals(AgentState.RUNNING);
+		return getStatus().equals(AgentStatus.RUNNING);
 	}
 
 	private void cancelSubmittedEvents() {
@@ -230,7 +230,7 @@ public class VirtualHost extends LoggingAgent {
 	}
 
 	public synchronized void putEvent(NetworkEvent ne) {
-		if(getState().equals(AgentState.STOPPED)) {
+		if(getStatus().equals(AgentStatus.STOPPED)) {
 			ne.signalError(new NetworkException("Host unreachable"));
 		}
 		
