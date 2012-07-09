@@ -23,9 +23,7 @@ package dimawo.agents;
 
 import java.io.PrintStream;
 import java.util.HashMap;
-import java.util.LinkedList;
 import java.util.Map;
-import java.util.concurrent.LinkedBlockingQueue;
 
 import org.apache.log4j.Logger;
 
@@ -133,9 +131,6 @@ public abstract class AbstractAgent<State> implements ErrorHandler {
     STOPPED
   }
 
-  /** Incoming messages queue. */
-  private LinkedBlockingQueue<Object> incoming;
-
   /** Message handlers map. */
   private final Map<Class<?>, MessageHandler<State, ?>> handlers;
 
@@ -149,6 +144,7 @@ public abstract class AbstractAgent<State> implements ErrorHandler {
   private AgentStatus status;
   private boolean started;
   private boolean stopped;
+  private boolean setup;
 
   private State state;
 
@@ -160,10 +156,12 @@ public abstract class AbstractAgent<State> implements ErrorHandler {
   private Throwable error;
 
   /** The name of the agent (used for logging and thread name). */
-  protected String agentName;
+  private String agentName;
 
   /** Error handler associated to this agent. */
   protected ErrorHandler errorHandler;
+
+  private Router router = Router.getDefaultRouter();
 
   /**
    * Instantiates an <code>AbstractAgent</code> without error handler and name.
@@ -173,47 +171,7 @@ public abstract class AbstractAgent<State> implements ErrorHandler {
    * arguments having <code>null</code> as value.
    */
   public AbstractAgent(State initialState) {
-    this(initialState, null, "");
-  }
-
-  /**
-   * Instantiates an <code>AbstractAgent</code> having given error handler and
-   * name. The message handling thread is not a daemon and the capacity of
-   * message queue is not limited. This constructor is equivalent to
-   * {@link #AbstractAgent(ErrorHandler, String, boolean)} constructor called
-   * with <code>AbstractAgent(parent, name, false)</code>.
-   * 
-   * @param parent
-   *          The error handler to associate to this agent.
-   * @param name
-   *          The name to associate to this agent.
-   * 
-   * @see ErrorHandler
-   */
-  public AbstractAgent(State initialState, ErrorHandler parent, String name) {
-    this(initialState, parent, name, false);
-  }
-
-  /**
-   * Instantiates an <code>AbstractAgent</code> having given error handler and
-   * name. The capacity of message queue is not limited. This constructor is
-   * equivalent to {@link #AbstractAgent(ErrorHandler, String, boolean, int)}
-   * constructor called with <code>AbstractAgent(parent, name, daemon, 0)</code>
-   * .
-   * 
-   * @param parent
-   *          The ErrorHandler to associate to this agent.
-   * @param name
-   *          The name to associate to this agent.
-   * @param daemon
-   *          Daemon flag for the thread that will execute message handling
-   *          code.
-   * 
-   * @see ErrorHandler
-   */
-  public AbstractAgent(State initialState, ErrorHandler parent, String name,
-      boolean daemon) {
-    this(initialState, parent, name, daemon, 0);
+    this(initialState, null, null);
   }
 
   /**
@@ -224,58 +182,22 @@ public abstract class AbstractAgent<State> implements ErrorHandler {
    *          The <code>ErrorHandler</code> to associate to this agent.
    * @param name
    *          The name to associate to this agent.
-   * @param daemon
-   *          Daemon flag for the thread that will execute message handling
-   *          code.
-   * @param capacity
-   *          The capacity of the incoming messages queue (see
-   *          {@link #submitMessage(Object) submitMessage}).
-   * 
    * @see ErrorHandler
    */
-  public AbstractAgent(State initialState, ErrorHandler parent, String name,
-      boolean daemon, int capacity) {
-    if (capacity <= 0) {
-      incoming = new LinkedBlockingQueue<Object>();
-    } else {
-      incoming = new LinkedBlockingQueue<Object>(capacity);
-    }
-
+  public AbstractAgent(State initialState, ErrorHandler parent, String name) {
     handlers = new HashMap<Class<?>, MessageHandler<State, ?>>();
 
-    agentName = name;
+    agentName = (name != null && !name.isEmpty()) ? name : getClass()
+        .getCanonicalName();
+
     this.errorHandler = parent;
 
     status = AgentStatus.INIT;
     state = initialState;
-
-    registerPrivateHandlers();
-  }
-
-  /**
-   * Instantiates an <code>AbstractAgent</code> having given error handler and
-   * name. The message handling thread is not a daemon. This constructor is
-   * equivalent to {@link #AbstractAgent(ErrorHandler, String, boolean, int)}
-   * constructor called with
-   * <code>AbstractAgent(parent, name, false, capacity)</code>.
-   * 
-   * @param parent
-   *          The ErrorHandler to associate to this agent.
-   * @param name
-   *          The name to associate to this agent.
-   * @param capacity
-   *          The capacity of the incoming messages queue (see
-   *          {@link #submitMessage(Object) submitMessage}).
-   * 
-   * @see ErrorHandler
-   */
-  public AbstractAgent(State initialState, ErrorHandler parent, String name,
-      int capacity) {
-    this(initialState, parent, name, false, capacity);
   }
 
   @SuppressWarnings("unchecked")
-  public void consumeNextMessage() throws InterruptedException, AgentException {
+  public void consumeMessage(Object message) throws AgentException {
 
     // Check agent has not already encountered an error
     if (error != null) {
@@ -284,7 +206,6 @@ public abstract class AbstractAgent<State> implements ErrorHandler {
     }
 
     // Consume next message in queue
-    Object message = incoming.take();
     @SuppressWarnings("rawtypes")
     MessageHandler handler = handlers.get(message.getClass());
     if (handler != null) {
@@ -300,24 +221,16 @@ public abstract class AbstractAgent<State> implements ErrorHandler {
     }
   }
 
-  /**
-   * Lists messages from messages queue and clears it. This allows an agent to
-   * handle the messages still present in its message queue when it terminates
-   * its execution (i.e. arrives in STOPPED state).
-   * 
-   * @return The list of messages from message queue.
-   */
-  protected LinkedList<Object> flushPendingMessages() {
-    LinkedList<Object> list = new LinkedList<Object>();
-    while (incoming.size() > 0) {
-      Object o = incoming.poll();
-      list.add(o);
-    }
-    return list;
-  }
-
   public Throwable getError() {
     return error;
+  }
+
+  public String getName() {
+    return agentName;
+  }
+
+  public Router getRouter() {
+    return router;
   }
 
   public State getState() {
@@ -413,51 +326,55 @@ public abstract class AbstractAgent<State> implements ErrorHandler {
     initHandler = handler;
   }
 
-  private void registerPrivateHandlers() {
-    try {
-      registerHandler(InitAgent.class, new MessageHandler<State, InitAgent>() {
-        @Override
-        public void handle(State agentState, InitAgent message)
-            throws Exception {
-          setStatus(AgentStatus.RUNNING);
+  private void registerPrivateHandlers() throws AgentException {
+    registerHandler(InitAgent.class, new MessageHandler<State, InitAgent>() {
+      @Override
+      public void handle(State agentState, InitAgent message) throws Exception {
+        setStatus(AgentStatus.RUNNING);
 
-          if (initHandler != null) {
-            initHandler.handle(agentState, message);
+        if (initHandler != null) {
+          initHandler.handle(agentState, message);
+        }
+      }
+    });
+
+    registerHandler(StopAgent.class, new MessageHandler<State, StopAgent>() {
+      @Override
+      public void handle(State agentState, StopAgent message) throws Exception {
+        setStatus(AgentStatus.STOPPED);
+
+        if (exitHandler != null) {
+          exitHandler.handle(agentState, message);
+        }
+      }
+    });
+
+    registerHandler(UncaughtThrowable.class,
+        new MessageHandler<State, UncaughtThrowable>() {
+          @Override
+          public void handle(State agentState, UncaughtThrowable message)
+              throws Exception {
+            handleChildException(message);
           }
-        }
-      });
+        });
 
-      registerHandler(StopAgent.class, new MessageHandler<State, StopAgent>() {
-        @Override
-        public void handle(State agentState, StopAgent message)
-            throws Exception {
-          setStatus(AgentStatus.STOPPED);
+    registerHandler(Exception.class, new MessageHandler<State, Exception>() {
+      @Override
+      public void handle(State agentState, Exception message) throws Exception {
+        throw message;
+      }
+    });
+  }
 
-          if (exitHandler != null) {
-            exitHandler.handle(agentState, message);
-          }
-        }
-      });
-
-      registerHandler(UncaughtThrowable.class,
-          new MessageHandler<State, UncaughtThrowable>() {
-            @Override
-            public void handle(State agentState, UncaughtThrowable message)
-                throws Exception {
-              handleChildException(message);
-            }
-          });
-
-      registerHandler(Exception.class, new MessageHandler<State, Exception>() {
-        @Override
-        public void handle(State agentState, Exception message)
-            throws Exception {
-          throw message;
-        }
-      });
-    } catch (AgentException e) {
-      logError(e);
+  public void route(String dest, Object message) throws AgentException,
+      InterruptedException {
+    @SuppressWarnings("rawtypes")
+    AbstractAgent agent = router.getAgent(dest);
+    if (agent == null) {
+      throw new AgentException("No registered agent with name '" + dest + "'");
     }
+
+    agent.submitMessage(message);
   }
 
   /**
@@ -484,6 +401,17 @@ public abstract class AbstractAgent<State> implements ErrorHandler {
     this.errorHandler = err;
   }
 
+  public void setName(String name) {
+    if (setup) {
+      throw new RuntimeException("Agent has already been setup");
+    }
+    this.agentName = name;
+  }
+
+  public void setRouter(Router router) {
+    this.router = router;
+  }
+
   /**
    * Sets the state of the agent. This method allows the thread-safe update of
    * the state of the agent.
@@ -493,6 +421,12 @@ public abstract class AbstractAgent<State> implements ErrorHandler {
    */
   private synchronized void setStatus(AgentStatus newState) {
     status = newState;
+  }
+
+  public void setup() throws AgentException {
+    router.registerAgent(this);
+    registerPrivateHandlers();
+    setup = true;
   }
 
   /**
@@ -516,9 +450,13 @@ public abstract class AbstractAgent<State> implements ErrorHandler {
    * @throws InterruptedException
    */
   public synchronized void start() throws AgentException, InterruptedException {
+    if (!setup) {
+      throw new AgentException("setup() has not been invoked, cannot start");
+    }
+
     if (!started) {
       started = true;
-      incoming.put(new InitAgent());
+      submitMessage(new InitAgent());
       onStart();
     } else {
       throw new AgentException("Agent was already started");
@@ -537,9 +475,13 @@ public abstract class AbstractAgent<State> implements ErrorHandler {
    *           If the agent is already stopped.
    */
   public synchronized void stop() throws InterruptedException, AgentException {
+    if (!started) {
+      throw new AgentException("Cannot stop agent that has not been started");
+    }
+
     if (!stopped) {
       stopped = true;
-      incoming.put(new StopAgent());
+      submitMessage(new StopAgent());
       onStop();
     } else {
       throw new AgentException("Agent has already been stopped");
@@ -560,7 +502,5 @@ public abstract class AbstractAgent<State> implements ErrorHandler {
    * @throws InterruptedException
    *           If the call is blocking and executing thread is interrupted.
    */
-  public void submitMessage(Object o) throws InterruptedException {
-    incoming.put(o);
-  }
+  public abstract void submitMessage(Object o) throws InterruptedException;
 }

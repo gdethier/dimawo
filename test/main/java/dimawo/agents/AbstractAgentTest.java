@@ -17,7 +17,7 @@ public class AbstractAgentTest {
 
   @Before
   public void before() {
-    agent = new AbstractAgent<TestState>(new TestState()) {
+    agent = new AbstractAgent<TestState>(new TestState(), null, "name") {
       @Override
       public void join() throws InterruptedException {
       }
@@ -33,6 +33,10 @@ public class AbstractAgentTest {
       @Override
       protected void onStop() {
       }
+
+      @Override
+      public void submitMessage(Object o) throws InterruptedException {
+      }
     };
   }
 
@@ -47,8 +51,7 @@ public class AbstractAgentTest {
         });
 
     Integer newVal = 3;
-    agent.submitMessage(newVal);
-    agent.consumeNextMessage();
+    agent.consumeMessage(newVal);
 
     TestState agentState = agent.getState();
     Assert.assertThat(agentState.state, Is.is(3));
@@ -57,8 +60,7 @@ public class AbstractAgentTest {
 
   @Test
   public void consumeError() throws AgentException, InterruptedException {
-    agent.submitMessage(new Exception("error"));
-    agent.consumeNextMessage();
+    agent.consumeMessage(new Exception("error"));
     Assert.assertThat(agent.getError(), IsNull.notNullValue());
     Assert.assertThat(agent.getStatus(), Is.is(AgentStatus.STOPPED));
   }
@@ -74,16 +76,15 @@ public class AbstractAgentTest {
 
     agent.registerInitHandler(initHandler);
     agent.registerExitHandler(exitHandler);
+    agent.setup(); // Otherwise, handlers are not actually activated
 
-    agent.start();
-    agent.consumeNextMessage(); // consume init event
+    agent.consumeMessage(new InitAgent()); // consume init event
     Assert.assertThat(agent.getStatus(),
         Is.is(AbstractAgent.AgentStatus.RUNNING));
     Mockito.verify(initHandler).handle(Mockito.any(TestState.class),
         Mockito.any(InitAgent.class));
 
-    agent.stop();
-    agent.consumeNextMessage(); // consume exit event
+    agent.consumeMessage(new StopAgent()); // consume exit event
     Assert.assertThat(agent.getStatus(),
         Is.is(AbstractAgent.AgentStatus.STOPPED));
     Mockito.verify(exitHandler).handle(Mockito.any(TestState.class),
