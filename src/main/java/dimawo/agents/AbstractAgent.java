@@ -346,6 +346,8 @@ public abstract class AbstractAgent<State> implements ErrorHandler {
         if (exitHandler != null) {
           exitHandler.handle(agentState, message);
         }
+
+        onStop();
       }
     });
 
@@ -482,7 +484,6 @@ public abstract class AbstractAgent<State> implements ErrorHandler {
     if (!stopped) {
       stopped = true;
       submitMessage(new StopAgent());
-      onStop();
     } else {
       throw new AgentException("Agent has already been stopped");
     }
